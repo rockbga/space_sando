@@ -148,7 +148,7 @@ function initPlatforms() {
   const sp = mkPlat(H - 130, 'solid');
   sp.x = W / 2 - sp.w / 2;
   platforms.push(sp);
-  for (let i = 1; i < 16; i++) platforms.push(mkPlat(H - 130 - i * PLAT_GAP));
+  for (let i = 1; i < 16; i++) platforms.push(mkPlat(H - 130 - i * BASE_GAP));
 }
 
 function resetGame() {
@@ -197,20 +197,28 @@ function update() {
 
     for (let i = 0; i < platforms.length; i++) {
       const p = platforms[i];
-      if (prevBottom > p.worldY + p.h) continue;
-      if (newBottom  < p.worldY)       continue;
-      if (newBottom  > p.worldY + p.h + 4) continue;
+
+      // CRITICAL: skip any platform that isn't visible on screen right now
+      const platScreenY = p.worldY - cameraY;
+      if (platScreenY < -p.h || platScreenY > H) continue;
+
+      // Must be falling through the top surface this frame only
+      if (prevBottom > p.worldY)           continue; // was already past it
+      if (newBottom  < p.worldY)           continue; // hasn't reached it
+      if (newBottom  > p.worldY + p.h + 6) continue; // overshot too far
+
+      // Horizontal overlap
       if (pRight <= p.x || pLeft >= p.x + p.w) continue;
 
-      player.vy  = JUMP_V;
-      player.y   = p.worldY - player.h;
+      player.vy     = JUMP_V;
+      player.y      = p.worldY - player.h;
       player.squish = 0.72;
 
       // Count the jump and check for level up
       jumpCount++;
       if (jumpCount % 7 === 0 && diffLevel < 10) {
         diffLevel++;
-        levelUpTimer = 90; // show flash for 1.5s
+        levelUpTimer = 90;
       }
 
       break;
@@ -231,8 +239,8 @@ function update() {
     p.glowT += 0.04;
   }
 
-  // Cull far-below platforms
-  const cutoff = cameraY + H + 100;
+  // Cull platforms that are off the bottom of the screen
+  const cutoff = cameraY + H + 20; // just below visible area
   platforms = platforms.filter(p => p.worldY < cutoff);
 
   // Spawn above
